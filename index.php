@@ -112,6 +112,112 @@ class BoolHydrator implements IHydrator
     }
 }
 
+enum JoinType: string
+{
+    case LEFT = "LEFT";
+    case INNER = "INNER";
+}
+
+class Join
+{
+    public function __construct(
+        public string $table,
+        public string $on,
+        public JoinType $type
+    ) {}
+}
+
+class Query
+{
+    public array $select = [];
+    public array $where = [];
+    public string $from;
+    public array $joins = [];
+
+    public function select($select): self
+    {
+        $this->select[] = $select;
+        return $this;
+    }
+
+    public function from(string $from): self
+    {
+        $this->from = $from;
+        return $this;
+    }
+
+    public function join(string $table, string $on, $type = JoinType::INNER): self
+    {
+        $this->joins[] = new Join($table, $on, $type);
+        return $this;
+    }
+
+    public function where($keyOrAssoc, $value = null): self
+    {
+        if (is_array($keyOrAssoc)) {
+            foreach ($keyOrAssoc as $key => $value) {
+                $this->where[$key] = $value;
+            }
+        } else {
+            $this->where[$keyOrAssoc] = $value;
+        }
+
+        return $this;
+    }
+
+    public function build(): string
+    {
+        $parts = [
+            $this->buildSelect(),
+            $this->buildFrom(),
+            $this->buildJoins(),
+            $this->buildWhere()
+        ];
+
+        return implode(" ", array_filter($parts));
+    }
+
+    protected function buildSelect()
+    {
+        $select = "*";
+        if (!empty($this->select)) {
+            $select = implode(", ", $this->select);
+        }
+
+        return "SELECT $select";
+    }
+
+    protected function buildFrom()
+    {
+        if (empty($this->from)) {
+            throw new Exception("Invalid query empty FROM clause");
+        }
+
+        return "FROM {$this->from}";
+    }
+
+    protected function buildJoins()
+    {
+        $joins = [];
+        foreach ($this->joins as $join) {
+            $joins[] = "{$join->type->value} JOIN {$join->table} ON {$join->on}";
+        }
+
+        return implode(" ", $joins);
+    }
+
+    protected function buildWhere()
+    {
+        $wheres = [];
+        foreach ($this->where as $field => $value) {
+            $wheres[] = "{$field} = {$value}";
+        }
+
+        $whereClause = implode(" AND ", $wheres);
+        return "WHERE {$whereClause}";
+    }
+}
+
 class BaseModel
 {
     protected string $table;
@@ -250,9 +356,10 @@ class UserModel extends BaseModel
     }
 }
 
-$model = new UserModel();
-$user = $model->findById(1);
-
-$extracted = $model->extract($user);
-var_dump($user);
-var_dump($extracted);
+$query = new Query();
+echo $query
+    ->select("*")
+    ->from("users")
+    ->where("id", 1)
+    ->join("saske", "user.id = saske.user_id")
+    ->build();

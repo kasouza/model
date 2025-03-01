@@ -1,0 +1,16 @@
+{
+    "name": "kaso/model",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Kaso\\Model\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "kasouza",
+            "email": "kaua.scmm@gmail.com"
+        }
+    ],
+    "require": {}
+}

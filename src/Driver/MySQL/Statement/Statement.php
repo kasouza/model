@@ -2,6 +2,7 @@
 
 namespace Kaso\Model\Driver\MySQL\Statement;
 
+use Exception;
 use Kaso\Model\Driver\MySQL\Connection\Connection;
 use Kaso\Model\Statement\IStatement;
 
@@ -21,17 +22,29 @@ class Statement implements IStatement
 
     public function execute(array $params): void
     {
-        $this->stmt->execute($params);
+        if (false === $this->stmt->execute($params)) {
+            throw new Exception($this->stmt->errorCode());
+        }
     }
 
-    public function fetchRow(): object
+    public function fetchRow(): ?object
     {
-        return $this->stmt->fetchObject();
+        $result = $this->stmt->fetchObject();
+        if (false === $result) {
+            return null;
+        }
+
+        return $result;
     }
 
     public function fetchAllRows(): array
     {
-        return $this->stmt->fetchAll(PDO::FETCH_OBJ);
+        $result = $this->stmt->fetchAll(PDO::FETCH_OBJ);
+        if (false === $result) {
+            return [];
+        }
+
+        return $result;
     }
 
     public function rowCount(): int {

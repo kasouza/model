@@ -31,7 +31,15 @@ class Query extends BaseQuery
             $this->buildWhere()
         ];
 
-        return new BuiltQuery(implode(" ", array_filter($parts)), []);
+        $stringParts = [];
+        $params = [];
+
+        foreach ($parts as $part) {
+            $stringParts[] = $part->getQueryString();
+            $params = array_merge($params, $part->getParams());
+        }
+
+        return new BuiltQuery(implode(" ", array_filter($stringParts)), $params);
     }
 
     protected function buildSelectQuery()
@@ -43,29 +51,39 @@ class Query extends BaseQuery
             $this->buildWhere()
         ];
 
-        return new BuiltQuery(implode(" ", array_filter($parts)), []);
+        $stringParts = [];
+        $params = [];
+
+        foreach ($parts as $part) {
+            $stringParts[] = $part->getQueryString();
+            $params = array_merge($params, $part->getParams());
+        }
+
+        return new BuiltQuery(implode(" ", array_filter($stringParts)), $params);
     }
 
-    protected function buildUpdate()
+    protected function buildUpdate(): QueryFragment
     {
-        return "UPDATE {$this->getTable()}";
+        return new QueryFragment("UPDATE {$this->getTable()}");
     }
 
-    protected function buildSet()
+    protected function buildSet(): QueryFragment
     {
         if (empty($this->getSet())) {
             throw new Exception("You must SET at least one value in an update query");
         }
 
         $set = [];
+        $params = [];
         foreach ($this->getSet() as $key=>$val){
-            $set[] = "{$key} = {$val}";
+            $set[] = "{$key} = ?";
+            $params[] = $val;
         }
 
-        return "SET " . implode(",", $set);
+        return new QueryFragment("SET " . implode(",", $set), $params);
     }
 
-    protected function buildSelect()
+    protected function buildSelect(): QueryFragment
     {
         $select = "*";
 
@@ -73,36 +91,44 @@ class Query extends BaseQuery
             $select = implode(", ", $this->getselect());
         }
 
-        return "SELECT $select";
+        return new QueryFragment("SELECT $select");
     }
 
-    protected function buildFrom()
+    protected function buildFrom(): QueryFragment
     {
         if (empty($this->getTable())) {
             throw new Exception("Invalid query empty FROM clause");
         }
 
-        return "FROM {$this->getTable()}";
+        return new QueryFragment("FROM {$this->getTable()}");
     }
 
-    protected function buildJoins()
+    protected function buildJoins(): QueryFragment
     {
         $joins = [];
         foreach ($this->getJoins() as $join) {
             $joins[] = "{$join->type->value} JOIN {$join->table} ON {$join->on}";
         }
 
-        return implode(" ", $joins);
+        return new QueryFragment(implode(" ", $joins));
     }
 
-    protected function buildWhere()
+    protected function buildWhere(): QueryFragment
     {
+        $where = $this->getWhere();
+        if (empty($where)) {
+            return new QueryFragment();
+        }
+
         $wheres = [];
+        $params = [];
+
         foreach ($this->getWhere() as $field => $value) {
-            $wheres[] = "{$field} = {$value}";
+            $wheres[] = "{$field} = ?";
+            $params[] = $value;
         }
 
         $whereClause = implode(" AND ", $wheres);
-        return "WHERE {$whereClause}";
+        return new QueryFragment("WHERE {$whereClause}", $params);
     }
 }

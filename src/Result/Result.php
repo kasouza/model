@@ -12,10 +12,10 @@ class Result implements IResult
         protected ?IHydrator $hydrator = null
     ) {}
 
-    public function getFirst(): object
+    public function getFirst(): ?object
     {
         $row = $this->statement->fetchRow();
-        if (empty($this->hydrator)) {
+        if (empty($this->hydrator) || empty($row)) {
             return $row;
         }
 

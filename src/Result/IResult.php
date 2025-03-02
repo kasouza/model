@@ -4,7 +4,7 @@ namespace Kaso\Model\Result;
 
 interface IResult
 {
-    public function getFirst(): object;
+    public function getFirst(): ?object;
     public function getAll(): array;
 
     /**

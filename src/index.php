@@ -53,7 +53,6 @@ $db = new DB(
     )
 );
 
-// TODO: Use prepared statements and pass the data as parameters (->set("name", "'Lemom'"))
 // TODO: INSERT queries
 // TODO: DELETE queries
 // TODO: Raw queries (with parameters)
@@ -62,12 +61,20 @@ class Relatorio {
     public int $average;
 }
 
-$query = $db->query(new Hydrator(Relatorio::class))
-    ->select("AVG(users.age) AS average")
-    ->from("users")
-    ->where("id", 1);
+$query = $db->query(new Hydrator(User::class))
+    ->from("users");
+$result = $db->execute($query);
+print_r($result->getAll());
+die;
+
+//$query = $db->query()
+    //->update("users")
+    //->where("name", "Jhon")
+    //->set("name", "Lemon");
+//var_dump($query->build());
+//die;
 
 $result = $db->execute($query);
-print_r($result->getFirst());
+var_dump($result->getFirst());
 
 exit;

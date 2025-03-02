@@ -3,75 +3,14 @@
 namespace Kaso\Model\Driver\MySQL\Query;
 
 use Exception;
-use Kaso\Model\Query\JoinType;
 use Kaso\Model\Query\BaseQuery;
+use Kaso\Model\Query\BuiltQuery;
+use Kaso\Model\Query\IBuiltQuery;
 use Kaso\Model\Query\QueryType;
 
 class Query extends BaseQuery
 {
-    protected string $table;
-
-    protected array $select = [];
-
-    protected array $set = [];
-
-    protected array $where = [];
-    protected array $joins = [];
-
-    public function update($table): Query
-    {
-        $this->setType(QueryType::UPDATE);
-        $this->table = $table;
-        return $this;
-    }
-
-    public function set($keyOrAssoc, $value = null): Query
-    {
-        if (is_array($keyOrAssoc)) {
-            foreach ($keyOrAssoc as $key => $value) {
-                $this->set[$key] = $value;
-            }
-        } else {
-            $this->set[$keyOrAssoc] = $value;
-        }
-
-        return $this;
-    }
-
-    public function select($select): self
-    {
-        $this->setType(QueryType::SELECT);
-        $this->select[] = $select;
-        return $this;
-    }
-
-    public function from(string $from): self
-    {
-        $this->ensureTypeAllowed(QueryType::SELECT);
-        $this->table = $from;
-        return $this;
-    }
-
-    public function join(string $table, string $on, $type = JoinType::INNER): self
-    {
-        $this->joins[] = new Join($table, $on, $type);
-        return $this;
-    }
-
-    public function where($keyOrAssoc, $value = null): self
-    {
-        if (is_array($keyOrAssoc)) {
-            foreach ($keyOrAssoc as $key => $value) {
-                $this->where[$key] = $value;
-            }
-        } else {
-            $this->where[$keyOrAssoc] = $value;
-        }
-
-        return $this;
-    }
-
-    public function build(): string
+    public function build(): IBuiltQuery
     {
         switch ($this->getType()) {
             case QueryType::UPDATE:
@@ -92,7 +31,7 @@ class Query extends BaseQuery
             $this->buildWhere()
         ];
 
-        return implode(" ", array_filter($parts));
+        return new BuiltQuery(implode(" ", array_filter($parts)), []);
     }
 
     protected function buildSelectQuery()
@@ -104,22 +43,22 @@ class Query extends BaseQuery
             $this->buildWhere()
         ];
 
-        return implode(" ", array_filter($parts));
+        return new BuiltQuery(implode(" ", array_filter($parts)), []);
     }
 
     protected function buildUpdate()
     {
-        return "UPDATE {$this->table}";
+        return "UPDATE {$this->getTable()}";
     }
 
     protected function buildSet()
     {
-        if (empty($this->set)) {
+        if (empty($this->getSet())) {
             throw new Exception("You must SET at least one value in an update query");
         }
 
         $set = [];
-        foreach ($this->set as $key=>$val){
+        foreach ($this->getSet() as $key=>$val){
             $set[] = "{$key} = {$val}";
         }
 
@@ -129,8 +68,9 @@ class Query extends BaseQuery
     protected function buildSelect()
     {
         $select = "*";
-        if (!empty($this->select)) {
-            $select = implode(", ", $this->select);
+
+        if (!empty($this->getselect())) {
+            $select = implode(", ", $this->getselect());
         }
 
         return "SELECT $select";
@@ -138,17 +78,17 @@ class Query extends BaseQuery
 
     protected function buildFrom()
     {
-        if (empty($this->table)) {
+        if (empty($this->getTable())) {
             throw new Exception("Invalid query empty FROM clause");
         }
 
-        return "FROM {$this->table}";
+        return "FROM {$this->getTable()}";
     }
 
     protected function buildJoins()
     {
         $joins = [];
-        foreach ($this->joins as $join) {
+        foreach ($this->getJoins() as $join) {
             $joins[] = "{$join->type->value} JOIN {$join->table} ON {$join->on}";
         }
 
@@ -158,7 +98,7 @@ class Query extends BaseQuery
     protected function buildWhere()
     {
         $wheres = [];
-        foreach ($this->where as $field => $value) {
+        foreach ($this->getWhere() as $field => $value) {
             $wheres[] = "{$field} = {$value}";
         }
 

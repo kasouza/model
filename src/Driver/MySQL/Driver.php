@@ -25,16 +25,12 @@ class Driver implements IDriver
         return new Query($hydrator);
     }
 
-    public function createStatement(IConnection $connection, IQuery $query): IStatement
+    public function createStatement(IConnection $connection, string $queryString): IStatement
     {
         if (!($connection instanceof Connection)) {
             throw new Exception("Connection is not from the same driver");
         }
 
-        if (!($query instanceof Query)) {
-            throw new Exception("Query is not from the same driver");
-        }
-
-        return new Statement($query, $connection);
+        return new Statement($connection, $queryString);
     }
 }

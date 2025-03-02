@@ -3,7 +3,6 @@
 namespace Kaso\Model\Driver\MySQL\Statement;
 
 use Kaso\Model\Driver\MySQL\Connection\Connection;
-use Kaso\Model\Driver\MySQL\Query\Query;
 use Kaso\Model\Statement\IStatement;
 
 use PDO;
@@ -14,15 +13,15 @@ class Statement implements IStatement
     protected PDOStatement $stmt;
 
     public function __construct(
-        protected Query $query,
-        protected Connection $connection
+        protected Connection $connection,
+        protected string $queryString
     ) {
-        $this->stmt = $connection->getHandle()->prepare($query->build());
+        $this->stmt = $connection->getHandle()->prepare($queryString);
     }
 
-    public function execute(): void
+    public function execute(array $params): void
     {
-        $this->stmt->execute();
+        $this->stmt->execute($params);
     }
 
     public function fetchRow(): object

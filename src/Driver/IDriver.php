@@ -12,5 +12,5 @@ interface IDriver
 {
     public function createConnection(ConnectionConfiguration $configuration): IConnection;
     public function createQuery(?IHydrator $hydrator = null): IQuery;
-    public function createStatement(IConnection $connection, IQuery $query): IStatement;
+    public function createStatement(IConnection $connection, string $queryString): IStatement;
 }

@@ -39,12 +39,14 @@ class DB
 
     public function execute(IQuery $query): IResult
     {
+        $builtQuery = $query->build();
+
         $stmt = $this->driver->createStatement(
             $this->connectionPool->getConnection(),
-            $query
+            $builtQuery->getBuiltString()
         );
 
-        $stmt->execute();
+        $stmt->execute($builtQuery->getParams());
 
         return new Result($stmt, $query->getHydrator());
     }

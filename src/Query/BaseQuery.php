@@ -3,11 +3,13 @@
 namespace Kaso\Model\Query;
 
 use Exception;
-use Kaso\Model\Driver\MySQL\Query\Join;
+use Kaso\Model\Query\Join;
 use Kaso\Model\Hydrator\IHydrator;
 
 abstract class BaseQuery implements IQuery
 {
+    const VALID_OPERATORS = ["=", "!=", "<=>", "IS", "IN"];
+
     private ?QueryType $type = null;
 
     private string $table;
@@ -20,14 +22,14 @@ abstract class BaseQuery implements IQuery
         private ?IHydrator $hydrator = null
     ) {}
 
-    public function update($table): self
+    public function update(string $table): self
     {
         $this->setType(QueryType::UPDATE);
         $this->table = $table;
         return $this;
     }
 
-    public function set($keyOrAssoc, $value = null): self
+    public function set(string | array $keyOrAssoc, string $value = null): self
     {
         if (is_array($keyOrAssoc)) {
             foreach ($keyOrAssoc as $key => $value) {
@@ -40,10 +42,17 @@ abstract class BaseQuery implements IQuery
         return $this;
     }
 
-    public function select($select): self
+    public function select(string | array $select): self
     {
         $this->setType(QueryType::SELECT);
-        $this->select[] = $select;
+        if (is_array($select)) {
+            foreach ($select as $sel) {
+                $this->select[] = $sel;
+            }
+        } else {
+            $this->select[] = $select;
+        }
+
         return $this;
     }
 
@@ -60,14 +69,16 @@ abstract class BaseQuery implements IQuery
         return $this;
     }
 
-    public function where($keyOrAssoc, $value = null): self
+    public function where(string | array $keyOrAssoc, mixed $valueOrOperator = null, mixed $value = null): self
     {
         if (is_array($keyOrAssoc)) {
-            foreach ($keyOrAssoc as $key => $value) {
-                $this->where[$key] = $value;
+            foreach ($keyOrAssoc as $key => $valueOrOperator) {
+                $this->where[] = new Where($key, null, $valueOrOperator);
             }
+        } else if (isset($valueOrOperator) && in_array($valueOrOperator, self::VALID_OPERATORS)) {
+            $this->where[] = new Where($keyOrAssoc, $valueOrOperator, $value);
         } else {
-            $this->where[$keyOrAssoc] = $value;
+            $this->where[] = new Where($keyOrAssoc, null, $valueOrOperator);
         }
 
         return $this;
@@ -101,23 +112,31 @@ abstract class BaseQuery implements IQuery
         }
     }
 
-    protected function getTable() {
+    protected function getTable()
+    {
         return $this->table;
     }
 
-    protected function getselect() {
+    protected function getselect()
+    {
         return $this->select;
     }
 
-    protected function getSet() {
+    protected function getSet()
+    {
         return $this->set;
     }
 
-    protected function getWhere() {
+    /**
+     * @return Where[]
+     */
+    protected function getWhere(): array
+    {
         return $this->where;
     }
 
-    protected function getJoins() {
+    protected function getJoins()
+    {
         return $this->joins;
     }
 }

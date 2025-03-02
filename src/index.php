@@ -62,7 +62,9 @@ class Relatorio {
 }
 
 $query = $db->query(new Hydrator(User::class))
-    ->from("users");
+    ->from("users")
+    ->where("id", [ 1, 2])
+;
 $result = $db->execute($query);
 print_r($result->getAll());
 die;

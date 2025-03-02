@@ -64,7 +64,7 @@ class Query extends BaseQuery
 
     protected function buildUpdate(): QueryFragment
     {
-        return new QueryFragment("UPDATE {$this->getTable()}");
+        return new QueryFragment("UPDATE {$this->escapeFieldName($this->getTable())}");
     }
 
     protected function buildSet(): QueryFragment
@@ -75,8 +75,8 @@ class Query extends BaseQuery
 
         $set = [];
         $params = [];
-        foreach ($this->getSet() as $key=>$val){
-            $set[] = "{$key} = ?";
+        foreach ($this->getSet() as $key => $val) {
+            $set[] = "{$this->escapeFieldName($key)} = ?";
             $params[] = $val;
         }
 
@@ -88,7 +88,13 @@ class Query extends BaseQuery
         $select = "*";
 
         if (!empty($this->getselect())) {
-            $select = implode(", ", $this->getselect());
+            $selectParts = [];
+
+            foreach ($this->getSelect() as $field) {
+                $selectParts[] = $this->escapeFieldName($field);
+            }
+
+            $select = implode(",", $selectParts);
         }
 
         return new QueryFragment("SELECT $select");
@@ -100,14 +106,15 @@ class Query extends BaseQuery
             throw new Exception("Invalid query empty FROM clause");
         }
 
-        return new QueryFragment("FROM {$this->getTable()}");
+        return new QueryFragment("FROM {$this->escapeFieldName($this->getTable())}");
     }
 
     protected function buildJoins(): QueryFragment
     {
         $joins = [];
         foreach ($this->getJoins() as $join) {
-            $joins[] = "{$join->type->value} JOIN {$join->table} ON {$join->on}";
+            // TODO: esacpe "ON"
+            $joins[] = "{$join->type->value} JOIN {$this->escapeFieldName($join->table)} ON {$join->on}";
         }
 
         return new QueryFragment(implode(" ", $joins));
@@ -115,20 +122,63 @@ class Query extends BaseQuery
 
     protected function buildWhere(): QueryFragment
     {
-        $where = $this->getWhere();
-        if (empty($where)) {
+        if (empty($this->getWhere())) {
             return new QueryFragment();
         }
 
         $wheres = [];
         $params = [];
 
-        foreach ($this->getWhere() as $field => $value) {
-            $wheres[] = "{$field} = ?";
-            $params[] = $value;
+        foreach ($this->getWhere() as $where) {
+            $op = $where->getOperator();
+            if ($where->getValue() === null) {
+                if (!empty($op) && $op !== "IS") {
+                    throw new Exception("Invalid operator for NULL value");
+                }
+
+                $op = "IS";
+            }
+
+            if (is_array($where->getValue())) {
+                if (empty($where->getValue())) {
+                    throw new Exception("List parameter cannot be empty");
+                }
+
+                if (!empty($op) && $op !== "IN") {
+                    throw new Exception("Invalid operator for LIST value");
+                }
+
+                $op = "IN";
+            }
+
+            if (empty($op)) {
+                $op = "=";
+            }
+
+            $placeholders = is_array($where->getValue())
+                ? implode(",", array_map(fn() => "?", $where->getValue()))
+                : "?";
+
+            if ($op === "IN") {
+                $placeholders = "({$placeholders})";
+            }
+
+            $wheres[] = "{$this->escapeFieldName($where->getKey())} {$op} {$placeholders}";
+
+            if (is_array($where->getValue())) {
+                $params = array_merge($params, $where->getValue());
+            } else {
+                $params[] = $where->getValue();
+            }
         }
 
         $whereClause = implode(" AND ", $wheres);
         return new QueryFragment("WHERE {$whereClause}", $params);
+    }
+
+    private function escapeFieldName(string $fieldName): string
+    {
+        $escaped = str_replace("`", "", $fieldName);
+        return "`{$escaped}`";
     }
 }

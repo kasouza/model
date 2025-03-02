@@ -1,6 +1,6 @@
 <?php
 
-namespace Kaso\Model\Driver\MySQL\Query;
+namespace Kaso\Model\Query;
 
 use Kaso\Model\Query\JoinType;
 

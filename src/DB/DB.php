@@ -9,6 +9,7 @@ use Kaso\Model\Hydrator\Hydrator;
 use Kaso\Model\Hydrator\IHydrator;
 use Kaso\Model\Query\BaseQuery;
 use Kaso\Model\Query\IQuery;
+use Kaso\Model\Query\RawQuery;
 use Kaso\Model\Result\IResult;
 use Kaso\Model\Result\Result;
 
@@ -37,9 +38,19 @@ class DB
         return $this->driver->createQuery($hydrator);
     }
 
+    public function raw(string $queryString, mixed $params = []): RawQuery {
+        if (!is_array($params)) {
+            $params = [$params];
+        }
+
+        return new RawQuery($queryString, $params);
+    }
+
     public function execute(IQuery $query): IResult
     {
         $builtQuery = $query->build();
+
+        var_dump($builtQuery->getBuiltString(), $builtQuery->getParams());
 
         $stmt = $this->driver->createStatement(
             $this->connectionPool->getConnection(),

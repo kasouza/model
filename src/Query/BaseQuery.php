@@ -3,6 +3,7 @@
 namespace Kaso\Model\Query;
 
 use Exception;
+use InvalidArgumentException;
 use Kaso\Model\Query\Join;
 use Kaso\Model\Hydrator\IHydrator;
 
@@ -12,37 +13,47 @@ abstract class BaseQuery implements IQuery
 
     private ?QueryType $type = null;
 
-    private string $table;
+    private string|RawQuery $table;
+
+    /** @var (string|RawQuery)[] $select */
     private array $select = [];
+
+    /** @var (Set|RawQuery)[] $set */
     private array $set = [];
+
+    /** @var (Where|RawQuery)[] $where */
     private array $where = [];
+
+    /** @var (Join|RawQuery)[] $joins */
     private array $joins = [];
 
     public function __construct(
         private ?IHydrator $hydrator = null
     ) {}
 
-    public function update(string $table): self
+    public function update(string|RawQuery $table): self
     {
         $this->setType(QueryType::UPDATE);
         $this->table = $table;
         return $this;
     }
 
-    public function set(string | array $keyOrAssoc, string $value = null): self
+    public function set(string|array|RawQuery $keyOrAssoc, string $value = null): self
     {
         if (is_array($keyOrAssoc)) {
             foreach ($keyOrAssoc as $key => $value) {
-                $this->set[$key] = $value;
+                $this->set[] = new Set($key, $value);
             }
+        } else if ($keyOrAssoc instanceof RawQuery) {
+            $this->set[] = $keyOrAssoc;
         } else {
-            $this->set[$keyOrAssoc] = $value;
+            $this->set[] = new Set($keyOrAssoc, $value);
         }
 
         return $this;
     }
 
-    public function select(string | array $select): self
+    public function select(string|array|RawQuery $select): self
     {
         $this->setType(QueryType::SELECT);
         if (is_array($select)) {
@@ -56,29 +67,44 @@ abstract class BaseQuery implements IQuery
         return $this;
     }
 
-    public function from(string $from): self
+    public function from(string|RawQuery $from): self
     {
         $this->ensureTypeAllowed(QueryType::SELECT);
         $this->table = $from;
         return $this;
     }
 
-    public function join(string $table, string $on, $type = JoinType::INNER): self
+    public function join(string|RawQuery $tableOrRaw, string $onLeft = null, string $onRight = null, $type = JoinType::INNER): self
     {
-        $this->joins[] = new Join($table, $on, $type);
+        if ($tableOrRaw instanceof RawQuery) {
+            $this->joins[] = $tableOrRaw;
+        } else {
+            if (empty($onLeft)) {
+                throw new InvalidArgumentException("The left part of ON of a JOIN cannot be null");
+            }
+
+            if (empty($onRight)) {
+                throw new InvalidArgumentException("The right part of ON of a JOIN cannot be null");
+            }
+
+            $this->joins[] = new Join($tableOrRaw, $onLeft, $onRight, $type);
+        }
+
         return $this;
     }
 
-    public function where(string | array $keyOrAssoc, mixed $valueOrOperator = null, mixed $value = null): self
+    public function where(string|array|RawQuery $keyOrAssocOrRaw, mixed $valueOrOperator = null, mixed $value = null): self
     {
-        if (is_array($keyOrAssoc)) {
-            foreach ($keyOrAssoc as $key => $valueOrOperator) {
+        if ($keyOrAssocOrRaw instanceof RawQuery) {
+            $this->where[] = $keyOrAssocOrRaw;
+        } else if (is_array($keyOrAssocOrRaw)) {
+            foreach ($keyOrAssocOrRaw as $key => $valueOrOperator) {
                 $this->where[] = new Where($key, null, $valueOrOperator);
             }
         } else if (isset($valueOrOperator) && in_array($valueOrOperator, self::VALID_OPERATORS)) {
-            $this->where[] = new Where($keyOrAssoc, $valueOrOperator, $value);
+            $this->where[] = new Where($keyOrAssocOrRaw, $valueOrOperator, $value);
         } else {
-            $this->where[] = new Where($keyOrAssoc, null, $valueOrOperator);
+            $this->where[] = new Where($keyOrAssocOrRaw, null, $valueOrOperator);
         }
 
         return $this;

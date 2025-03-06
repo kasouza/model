@@ -9,6 +9,7 @@ use Kaso\Model\DB\DB;
 use Kaso\Model\Driver\MySQL\Driver;
 use Kaso\Model\Entity\Entity;
 use Kaso\Model\Hydrator\Hydrator;
+use Kaso\Model\Query\RawQuery;
 
 define("DB_URL", "mysql:host=127.0.0.1;dbname=teste");
 define("DB_USER", "root");
@@ -55,26 +56,32 @@ $db = new DB(
 
 // TODO: INSERT queries
 // TODO: DELETE queries
+// TODO: UPDATE with JOINS
+// TODO: Possibilitar fazer selects com . (ex: user.name -> `user`.`name`)
+// TODO: Possibilitar fazer selects com * (ex: * -> *; user.* -> `user`.*)
+// TODO: Possibilitar fazer JOIN com . (ex: user.id = post.user_id -> `user`.`id` = `post`.`user_id`)
+// TODO: OR WHERE
+// TODO: PARENTHESIS
 // TODO: Raw queries (with parameters)
 
-class Relatorio {
+class Relatorio
+{
     public int $average;
 }
 
 $query = $db->query(new Hydrator(User::class))
-    ->from("users")
-    ->where("id", [ 1, 2])
-;
+    ->select($db->raw("users.*"))
+    ->from($db->raw("users"))
+    ->join($db->raw("LEFT JOIN posts ON users.id = posts.user_id"))
+    ->where($db->raw("id IN (?, ?)", [1, 2]));
 $result = $db->execute($query);
 print_r($result->getAll());
 die;
 
 //$query = $db->query()
-    //->update("users")
-    //->where("name", "Jhon")
-    //->set("name", "Lemon");
-//var_dump($query->build());
-//die;
+//->update($db->raw("users"))
+//->where($db->raw("name = ?", ['Jhon']))
+//->set($db->raw("name = 'Lemom'"));
 
 $result = $db->execute($query);
 var_dump($result->getFirst());
